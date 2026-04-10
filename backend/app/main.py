@@ -1,7 +1,7 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import health, intake, markets_router, strategy, generate, pipeline, direct_edit
+from app.routers import health, intake, markets_router, strategy, generate, pipeline, direct_edit, publish
 
 # Configure logging
 logging.basicConfig(
@@ -33,3 +33,4 @@ app.include_router(strategy.router, prefix="/api/v1", tags=["Strategy"])
 app.include_router(generate.router, prefix="/api/v1", tags=["Generate"])
 app.include_router(pipeline.router, prefix="/api/v1", tags=["Pipeline"])
 app.include_router(direct_edit.router, prefix="/api/v1", tags=["Direct Edit"])
+app.include_router(publish.router, prefix="/api/v1", tags=["Publish"])

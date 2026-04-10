@@ -52,17 +52,17 @@
     "taboos": "Halal compliance critical, avoid left-hand imagery, respect religious symbols, be careful with LGBTQ+ content"
   },
   {
-    "code": "VN",
-    "name": "Vietnam",
-    "primary_language": "Vietnamese",
-    "secondary_languages": ["English"],
-    "cultural_context": "Fast-growing economy with young, tech-savvy population. Strong national pride and Confucian values. Social commerce is huge.",
-    "local_brands": "VinGroup, Viettel, Shopee, Grab, Masan, TH True Milk",
-    "preferred_platforms": ["Facebook", "Zalo", "TikTok", "Shopee", "Instagram"],
-    "festivals": "Tet (Lunar New Year), Mid-Autumn Festival, Reunification Day (Apr 30), National Day (Sep 2)",
-    "values": "Family, education, hard work, national pride, community",
-    "humor_style": "Witty wordplay in Vietnamese, situational comedy, family scenarios, aspirational content",
-    "taboos": "Avoid sensitive political topics, respect for elders is essential, careful with war references, avoid Chinese cultural dominance narratives"
+    "code": "CN",
+    "name": "China",
+    "primary_language": "Mandarin Chinese",
+    "secondary_languages": ["Cantonese", "English"],
+    "cultural_context": "World's largest consumer market with unique digital ecosystem (WeChat, Douyin, Xiaohongshu). Strong emphasis on collectivism, face culture, and rapid trend cycles. Consumers are brand-savvy and value quality, social proof, and KOL endorsements.",
+    "local_brands": "Alibaba, Tencent, ByteDance, Xiaomi, Huawei, Nayuki, Heytea, Li-Ning, Anta",
+    "preferred_platforms": ["Douyin (TikTok CN)", "Xiaohongshu (RED)", "WeChat", "Weibo", "Tmall", "Bilibili"],
+    "festivals": "Chinese New Year (Spring Festival), Mid-Autumn Festival, Singles Day (11.11), Dragon Boat Festival, Qingming, National Day (Oct 1)",
+    "values": "Family, harmony, education, face (mianzi), hard work, collective success, filial piety",
+    "humor_style": "Wordplay and puns (especially homophones), self-deprecating humor, internet slang (e.g. YYDS, jianguo), meme culture, satirical content on Bilibili",
+    "taboos": "Avoid political sensitivity (Taiwan, Tibet, Tiananmen), do not use the number 4 prominently (death association), avoid Japanese militarism references, respect CCP guidelines, no skull/skeleton imagery in ads, careful with religious content"
   },
   {
     "code": "PH",

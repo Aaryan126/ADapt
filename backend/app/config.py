@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     model_image_gen: str = "gemini-3.1-flash-image-preview"  # queue-based API
     model_direct_edit: str = "gemini-3.1-flash-image-preview"  # queue-based, supports image input
 
+    # Publer (social media publishing)
+    publer_api_key: str = ""
+    publer_workspace_id: str = ""
+    publer_tiktok_account_id: str = ""
+
     class Config:
         env_prefix = ""
         env_file = ".env"

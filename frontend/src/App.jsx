@@ -8,7 +8,7 @@ const MARKETS = [
   { code: 'TH', name: 'Thailand', flag: '\uD83C\uDDF9\uD83C\uDDED' },
   { code: 'MY', name: 'Malaysia', flag: '\uD83C\uDDF2\uD83C\uDDFE' },
   { code: 'ID', name: 'Indonesia', flag: '\uD83C\uDDEE\uD83C\uDDE9' },
-  { code: 'VN', name: 'Vietnam', flag: '\uD83C\uDDFB\uD83C\uDDF3' },
+  { code: 'CN', name: 'China', flag: '\uD83C\uDDE8\uD83C\uDDF3' },
   { code: 'PH', name: 'Philippines', flag: '\uD83C\uDDF5\uD83C\uDDED' },
 ]
 
@@ -39,6 +39,48 @@ function App() {
   // Direct edit mode
   const [editInstructions, setEditInstructions] = useState('')
   const [directResult, setDirectResult] = useState(null)
+
+  // Publishing
+  const [publishing, setPublishing] = useState(false)
+  const [publishResult, setPublishResult] = useState(null)
+
+  async function handlePublishToTikTok(imageUrl, caption) {
+    setPublishing(true)
+    setPublishResult(null)
+    console.log('[Publish] Posting to TikTok...', { caption: caption?.slice(0, 80), imageUrl: imageUrl?.slice(0, 80) })
+
+    try {
+      const resp = await fetch(`${API}/publish/tiktok`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caption, image_url: imageUrl }),
+      })
+      const data = await resp.json()
+      console.log('[Publish] Response:', data)
+
+      if (data.status === 'ok') {
+        const postLink = data.data?.post_link
+        setPublishResult({
+          success: true,
+          message: postLink ? 'Posted to TikTok!' : 'Posted to TikTok! (link may take a moment to appear)',
+          link: postLink,
+        })
+      } else {
+        setPublishResult({ success: false, message: data.error || 'Publishing failed' })
+      }
+    } catch (err) {
+      console.error('[Publish] Error:', err)
+      setPublishResult({ success: false, message: err.message })
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  function getCreativeCaption() {
+    if (!creativeResult?.outputs?.localized_copies?.length) return ''
+    const copy = creativeResult.outputs.localized_copies[0]
+    return `${copy.headline}\n\n${copy.body}\n\n${copy.cta}`
+  }
 
   function handleImageChange(e) {
     const file = e.target.files[0]
@@ -443,6 +485,34 @@ function App() {
                     )}
                   </div>
                 </div>
+
+                {/* Publish to TikTok */}
+                {creativeResult.outputs?.image_url && (
+                  <div className="result-section publish-section">
+                    <h3>Publish</h3>
+                    <p className="publish-desc">Post the localized ad directly to TikTok</p>
+                    <button
+                      className="publish-btn"
+                      onClick={() => handlePublishToTikTok(
+                        creativeResult.outputs.image_url,
+                        getCreativeCaption()
+                      )}
+                      disabled={publishing}
+                    >
+                      {publishing ? 'Publishing...' : 'Post to TikTok'}
+                    </button>
+                    {publishResult && (
+                      <div className={`publish-result ${publishResult.success ? 'success' : 'fail'}`}>
+                        {publishResult.message}
+                        {publishResult.link && (
+                          <a href={publishResult.link} target="_blank" rel="noopener noreferrer" className="publish-link">
+                            View on TikTok
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -537,6 +607,34 @@ function App() {
                     <p style={{ whiteSpace: 'pre-wrap' }}>{directResult.instructions}</p>
                   </div>
                 </div>
+
+                {/* Publish to TikTok */}
+                {directResult.image_url && (
+                  <div className="result-section publish-section">
+                    <h3>Publish</h3>
+                    <p className="publish-desc">Post the edited ad directly to TikTok</p>
+                    <button
+                      className="publish-btn"
+                      onClick={() => handlePublishToTikTok(
+                        directResult.image_url,
+                        editInstructions
+                      )}
+                      disabled={publishing}
+                    >
+                      {publishing ? 'Publishing...' : 'Post to TikTok'}
+                    </button>
+                    {publishResult && (
+                      <div className={`publish-result ${publishResult.success ? 'success' : 'fail'}`}>
+                        {publishResult.message}
+                        {publishResult.link && (
+                          <a href={publishResult.link} target="_blank" rel="noopener noreferrer" className="publish-link">
+                            View on TikTok
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>

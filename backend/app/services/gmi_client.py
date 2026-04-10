@@ -128,8 +128,8 @@ async def generate_image(
             "image_size": "1K",
         }
 
-    # Submit request to queue API (longer timeout for large image payloads)
-    submit_timeout = 120 if source_image_b64 else 60
+    # Submit request to queue API (generous timeout - GMI can be slow to accept)
+    submit_timeout = 120
     async with httpx.AsyncClient(timeout=submit_timeout) as client:
         try:
             resp = await client.post(

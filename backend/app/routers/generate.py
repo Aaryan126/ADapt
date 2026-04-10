@@ -239,7 +239,7 @@ Text overlays: {', '.join(image_brief.text_overlays)}{custom_reminder}"""
     try:
         image_result = await generate_image(image_gen_prompt)
     except Exception as e:
-        logger.error(f"[STEP 5c] Image generation error: {e}")
+        logger.error(f"[STEP 5c] Image generation error: {type(e).__name__}: {e}")
         image_result = None
     logger.info(f"[STEP 5c] Image generation finished in {time.time() - step_start:.1f}s (success={image_result is not None})")
 
