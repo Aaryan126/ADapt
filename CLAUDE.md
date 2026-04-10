@@ -1,4 +1,4 @@
-# Ad Localization Engine - Coding Guidelines
+# ADapt - Coding Guidelines
 
 ## Project Overview
 A pipeline that takes ads (text or image), localizes them for Southeast Asian markets using GMI Cloud AI models, and produces localized copy + visuals.
