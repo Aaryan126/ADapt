@@ -1,0 +1,80 @@
+[
+  {
+    "code": "SG",
+    "name": "Singapore",
+    "primary_language": "English",
+    "secondary_languages": ["Mandarin", "Malay", "Tamil"],
+    "cultural_context": "Multicultural city-state with strong emphasis on efficiency, pragmatism, and meritocracy. Kiasu (fear of losing out) culture drives consumer behavior.",
+    "local_brands": "Grab, Shopee, FairPrice, DBS, Tiger Beer, Charles & Keith",
+    "preferred_platforms": ["Instagram", "TikTok", "Grab Ads", "Carousell"],
+    "festivals": "Chinese New Year, Hari Raya, Deepavali, National Day (Aug 9)",
+    "values": "Efficiency, family, education, food culture, pragmatism",
+    "humor_style": "Self-deprecating, Singlish wordplay, relatable everyday situations",
+    "taboos": "Avoid racial/religious insensitivity, don't mock government policies, be careful with 'four' (death association in Chinese culture)"
+  },
+  {
+    "code": "TH",
+    "name": "Thailand",
+    "primary_language": "Thai",
+    "secondary_languages": ["English"],
+    "cultural_context": "Land of Smiles with deep Buddhist influence. Respect for monarchy and elders is paramount. Thai consumers love fun, playful, and emotional content.",
+    "local_brands": "LINE, Lazada, CP Group, Singha, PTT, SCB",
+    "preferred_platforms": ["LINE", "Facebook", "TikTok", "Instagram", "Shopee"],
+    "festivals": "Songkran (Apr), Loy Krathong (Nov), King's Birthday, Buddhist holidays",
+    "values": "Sanuk (fun), respect for elders, Buddhism, face-saving, hospitality",
+    "humor_style": "Slapstick, over-the-top, emotional storytelling, celebrity endorsements",
+    "taboos": "Never disrespect the monarchy, avoid using Buddha images commercially, don't point feet at people/images, head is sacred"
+  },
+  {
+    "code": "MY",
+    "name": "Malaysia",
+    "primary_language": "Bahasa Malaysia",
+    "secondary_languages": ["English", "Mandarin", "Tamil"],
+    "cultural_context": "Multiracial society (Malay, Chinese, Indian) with strong Islamic influence. Halal compliance is critical for many products. Bahasa Rojak (mixed language) is common.",
+    "local_brands": "Grab, Petronas, Shopee, AirAsia, Mamee, Bata",
+    "preferred_platforms": ["Instagram", "TikTok", "Shopee", "Facebook", "WhatsApp"],
+    "festivals": "Hari Raya Aidilfitri, Chinese New Year, Deepavali, Merdeka Day (Aug 31)",
+    "values": "Family, religious harmony, food culture, gotong-royong (community spirit)",
+    "humor_style": "Bahasa Rojak wordplay, self-deprecating, food references, relatable family scenarios",
+    "taboos": "Halal sensitivity, avoid pork/alcohol imagery for Muslim audience, respect for royalty, avoid racial stereotypes"
+  },
+  {
+    "code": "ID",
+    "name": "Indonesia",
+    "primary_language": "Bahasa Indonesia",
+    "secondary_languages": ["Javanese", "Sundanese", "English"],
+    "cultural_context": "World's largest Muslim-majority country with incredible diversity (300+ ethnic groups). Strong community values and growing digital economy.",
+    "local_brands": "Gojek, Tokopedia, Indomie, BCA, Traveloka, Wardah",
+    "preferred_platforms": ["Instagram", "TikTok", "Tokopedia", "Shopee", "WhatsApp"],
+    "festivals": "Eid al-Fitr (Lebaran), Independence Day (Aug 17), Ramadan, Nyepi (Bali)",
+    "values": "Gotong royong (mutual aid), religious piety, family, nationalism, respect for elders",
+    "humor_style": "Warm, community-oriented, relatable daily life, gentle humor, meme culture",
+    "taboos": "Halal compliance critical, avoid left-hand imagery, respect religious symbols, be careful with LGBTQ+ content"
+  },
+  {
+    "code": "VN",
+    "name": "Vietnam",
+    "primary_language": "Vietnamese",
+    "secondary_languages": ["English"],
+    "cultural_context": "Fast-growing economy with young, tech-savvy population. Strong national pride and Confucian values. Social commerce is huge.",
+    "local_brands": "VinGroup, Viettel, Shopee, Grab, Masan, TH True Milk",
+    "preferred_platforms": ["Facebook", "Zalo", "TikTok", "Shopee", "Instagram"],
+    "festivals": "Tet (Lunar New Year), Mid-Autumn Festival, Reunification Day (Apr 30), National Day (Sep 2)",
+    "values": "Family, education, hard work, national pride, community",
+    "humor_style": "Witty wordplay in Vietnamese, situational comedy, family scenarios, aspirational content",
+    "taboos": "Avoid sensitive political topics, respect for elders is essential, careful with war references, avoid Chinese cultural dominance narratives"
+  },
+  {
+    "code": "PH",
+    "name": "Philippines",
+    "primary_language": "Filipino (Tagalog)",
+    "secondary_languages": ["English", "Cebuano", "Ilocano"],
+    "cultural_context": "Strongly influenced by American and Spanish culture. Very social media active. Filipinos love storytelling, humor, and emotional content. Taglish (Tagalog-English mix) is the norm.",
+    "local_brands": "Jollibee, Grab, Shopee, Globe, SM, Bench",
+    "preferred_platforms": ["Facebook", "TikTok", "Instagram", "Shopee", "YouTube"],
+    "festivals": "Christmas (starts Sep!), Sinulog, Ati-Atihan, Independence Day (Jun 12)",
+    "values": "Bayanihan (community help), family, faith, pakikisama (social harmony), humor in adversity",
+    "humor_style": "Self-deprecating, puns in Taglish, meme-heavy, celebrity culture, emotional storytelling",
+    "taboos": "Respect for religion (Catholic majority), avoid insensitive poverty references, don't mock Filipino English accent"
+  }
+]
