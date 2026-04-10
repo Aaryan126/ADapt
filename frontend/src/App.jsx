@@ -243,8 +243,8 @@ function App() {
   return (
     <div className="app">
       <header>
-        <div className="logo-mark">AL</div>
-        <h1>Ad Localization Engine</h1>
+        <div className="logo-mark">AD</div>
+        <h1>ADapt</h1>
         <p className="subtitle">AI-powered ad localization for Southeast Asian markets</p>
       </header>
 
@@ -644,7 +644,7 @@ function App() {
       </main>
 
       <footer>
-        <p>Ad Localization Engine v0.1 &middot; Powered by GMI Cloud</p>
+        <p>ADapt v0.1 &middot; Powered by GMI Cloud</p>
       </footer>
     </div>
   )

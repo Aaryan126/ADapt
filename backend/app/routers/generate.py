@@ -55,22 +55,30 @@ def build_copy_prompt(req: GenerateRequest) -> str:
         if custom.platform:
             prompt += f"\n- Platform: {custom.platform}"
 
-    prompt += """
+    prompt += f"""
 
 ## Task
-Generate localized ad copy for EACH target language (primary + secondary). Return as JSON:
-{
+Generate localized ad copy for EACH of these target languages:
+1. {market.primary_language} (PRIMARY - this is the most important version)
+{chr(10).join(f'{i+2}. {lang}' for i, lang in enumerate(market.secondary_languages))}
+
+IMPORTANT: The headline, body, and CTA for each language MUST be written IN THAT LANGUAGE, not in English.
+For example, if the language is "Mandarin Chinese", write the headline/body/cta in Chinese characters.
+If the language is "Thai", write in Thai script. Do NOT just write English translations.
+
+Return as JSON:
+{{
   "copies": [
-    {
+    {{
       "language": "language name",
-      "headline": "localized headline",
-      "body": "localized body copy",
-      "cta": "localized call to action",
-      "tone_notes": "notes on tone choices",
-      "cultural_reasoning": "why these choices work for this market"
-    }
+      "headline": "localized headline IN THIS LANGUAGE",
+      "body": "localized body copy IN THIS LANGUAGE",
+      "cta": "localized call to action IN THIS LANGUAGE",
+      "tone_notes": "notes on tone choices (this can be in English)",
+      "cultural_reasoning": "why these choices work for this market (this can be in English)"
+    }}
   ]
-}
+}}
 
 Make each version feel native, not translated. Use local idioms, slang, and cultural references where appropriate."""
 
