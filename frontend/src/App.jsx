@@ -243,9 +243,9 @@ function App() {
   return (
     <div className="app">
       <header>
-        <div className="logo-mark">AD</div>
-        <h1>ADapt</h1>
-        <p className="subtitle">AI-powered ad localization for Southeast Asian markets</p>
+        <div className="logo-mark">ADapt</div>
+        <h1>Localize your ads,<br /><em>beautifully.</em></h1>
+        <p className="subtitle">AI-powered creative localization for Southeast Asian and Chinese markets. From strategy to final visual, in one pipeline.</p>
       </header>
 
       {/* Mode Toggle */}
@@ -644,7 +644,7 @@ function App() {
       </main>
 
       <footer>
-        <p>ADapt v0.1 &middot; Powered by GMI Cloud</p>
+        <p>ADapt &middot; AI-powered ad localization &middot; Powered by GMI Cloud</p>
       </footer>
     </div>
   )
