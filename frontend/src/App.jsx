@@ -1,22 +1,19 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import './App.css'
 
 const API = 'http://localhost:8000/api/v1'
 
 const MARKETS = [
-  { code: 'SG', name: 'Singapore', flag: '\uD83C\uDDF8\uD83C\uDDEC' },
-  { code: 'TH', name: 'Thailand', flag: '\uD83C\uDDF9\uD83C\uDDED' },
-  { code: 'MY', name: 'Malaysia', flag: '\uD83C\uDDF2\uD83C\uDDFE' },
-  { code: 'ID', name: 'Indonesia', flag: '\uD83C\uDDEE\uD83C\uDDE9' },
-  { code: 'CN', name: 'China', flag: '\uD83C\uDDE8\uD83C\uDDF3' },
-  { code: 'PH', name: 'Philippines', flag: '\uD83C\uDDF5\uD83C\uDDED' },
+  { code: 'SG', name: 'Singapore', flag: '\uD83C\uDDF8\uD83C\uDDEC', lang: 'English + Mandarin, Malay, Tamil', vibe: 'Kiasu culture, Singlish wordplay, food-obsessed' },
+  { code: 'TH', name: 'Thailand', flag: '\uD83C\uDDF9\uD83C\uDDED', lang: 'Thai + English', vibe: 'Land of Smiles, sanuk (fun), Buddhist values' },
+  { code: 'MY', name: 'Malaysia', flag: '\uD83C\uDDF2\uD83C\uDDFE', lang: 'Bahasa Malaysia + English, Mandarin, Tamil', vibe: 'Multiracial, Bahasa Rojak, halal-conscious' },
+  { code: 'ID', name: 'Indonesia', flag: '\uD83C\uDDEE\uD83C\uDDE9', lang: 'Bahasa Indonesia + Javanese, English', vibe: 'Community-first, gotong royong, 300+ ethnic groups' },
+  { code: 'CN', name: 'China', flag: '\uD83C\uDDE8\uD83C\uDDF3', lang: 'Mandarin Chinese + Cantonese, English', vibe: 'Douyin/WeChat ecosystem, mianzi culture, trend-driven' },
+  { code: 'PH', name: 'Philippines', flag: '\uD83C\uDDF5\uD83C\uDDED', lang: 'Filipino (Tagalog) + English, Cebuano', vibe: 'Taglish, bayanihan spirit, meme-heavy humor' },
 ]
 
 function App() {
-  // Mode
-  const [mode, setMode] = useState('creative') // 'creative' | 'direct'
-
-  // Shared
+  const [mode, setMode] = useState('creative')
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -24,9 +21,10 @@ function App() {
   const [step, setStep] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [inputSnapshot, setInputSnapshot] = useState(null)
+  const [showValidation, setShowValidation] = useState(false)
   const fileInputRef = useRef(null)
+  const resultsRef = useRef(null)
 
-  // Creative mode
   const [adText, setAdText] = useState('')
   const [market, setMarket] = useState('SG')
   const [tone, setTone] = useState('')
@@ -36,19 +34,44 @@ function App() {
   const [notes, setNotes] = useState('')
   const [creativeResult, setCreativeResult] = useState(null)
 
-  // Direct edit mode
   const [editInstructions, setEditInstructions] = useState('')
   const [directResult, setDirectResult] = useState(null)
 
-  // Publishing
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState(null)
+
+  // Collapsible sections
+  const [openSections, setOpenSections] = useState({ strategy: true, copy: true, brief: false })
+  function toggleSection(key) {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  // Scroll to results when they appear
+  useEffect(() => {
+    if ((creativeResult || directResult) && resultsRef.current) {
+      resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [creativeResult, directResult])
+
+  async function downloadImage(url, filename) {
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = filename || 'adapt-ad.jpg'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+    } catch (err) {
+      console.error('Download failed:', err)
+    }
+  }
 
   async function handlePublishToTikTok(imageUrl, caption) {
     setPublishing(true)
     setPublishResult(null)
-    console.log('[Publish] Posting to TikTok...', { caption: caption?.slice(0, 80), imageUrl: imageUrl?.slice(0, 80) })
-
     try {
       const resp = await fetch(`${API}/publish/tiktok`, {
         method: 'POST',
@@ -56,20 +79,13 @@ function App() {
         body: JSON.stringify({ caption, image_url: imageUrl }),
       })
       const data = await resp.json()
-      console.log('[Publish] Response:', data)
-
       if (data.status === 'ok') {
         const postLink = data.data?.post_link
-        setPublishResult({
-          success: true,
-          message: postLink ? 'Posted to TikTok!' : 'Posted to TikTok! (link may take a moment to appear)',
-          link: postLink,
-        })
+        setPublishResult({ success: true, message: postLink ? 'Posted to TikTok!' : 'Posted! Link may take a moment to appear.', link: postLink })
       } else {
         setPublishResult({ success: false, message: data.error || 'Publishing failed' })
       }
     } catch (err) {
-      console.error('[Publish] Error:', err)
       setPublishResult({ success: false, message: err.message })
     } finally {
       setPublishing(false)
@@ -86,6 +102,7 @@ function App() {
     const file = e.target.files[0]
     if (file) {
       setImageFile(file)
+      setShowValidation(false)
       const reader = new FileReader()
       reader.onloadend = () => setImagePreview(reader.result)
       reader.readAsDataURL(file)
@@ -98,49 +115,36 @@ function App() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  function switchMode(newMode) {
-    setMode(newMode)
+  function switchMode(m) {
+    setMode(m)
     setCreativeResult(null)
     setDirectResult(null)
     setError(null)
+    setPublishResult(null)
+    setShowValidation(false)
   }
 
-  // ── Creative Pipeline ──
   async function handleCreativeSubmit(e) {
     e.preventDefault()
+    if (!imageFile && !adText.trim()) {
+      setShowValidation(true)
+      return
+    }
+    setShowValidation(false)
     const startTime = Date.now()
-    console.log('[Creative] Started', { adText: adText ? `${adText.length} chars` : 'none', imageFile: imageFile?.name, market })
     setLoading(true)
     setCreativeResult(null)
     setError(null)
     setElapsed(0)
-
-    setInputSnapshot({
-      type: imageFile ? 'image' : 'text',
-      imagePreview,
-      text: adText,
-      market: MARKETS.find(m => m.code === market),
-    })
-
-    const timer = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000))
-    }, 1000)
+    setPublishResult(null)
+    setOpenSections({ strategy: true, copy: true, brief: false })
+    setInputSnapshot({ type: imageFile ? 'image' : 'text', imagePreview, text: adText, market: MARKETS.find(m => m.code === market) })
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
 
     const formData = new FormData()
     formData.append('market_code', market)
-
-    if (imageFile) {
-      formData.append('image', imageFile)
-      setStep('Analyzing uploaded image...')
-    } else if (adText.trim()) {
-      formData.append('ad_text', adText)
-      setStep('Processing text input...')
-    } else {
-      setError('Provide either ad text or an image')
-      setLoading(false)
-      clearInterval(timer)
-      return
-    }
+    if (imageFile) { formData.append('image', imageFile); setStep('Analyzing uploaded image...') }
+    else { formData.append('ad_text', adText); setStep('Processing text input...') }
 
     if (tone) formData.append('tone', tone)
     if (languageMix) formData.append('language_mix', languageMix)
@@ -148,74 +152,44 @@ function App() {
     if (platform) formData.append('platform', platform)
     if (notes) formData.append('freeform_notes', notes)
 
-    const stepMessages = [
-      { delay: 3000, msg: 'Analyzing ad content...' },
-      { delay: 15000, msg: 'Applying market context...' },
-      { delay: 25000, msg: 'Generating localization strategy...' },
-      { delay: 45000, msg: 'Writing localized ad copy...' },
-      { delay: 65000, msg: 'Creating image direction brief...' },
-      { delay: 80000, msg: 'Generating localized ad image...' },
+    const steps = [
+      { delay: 3000, msg: 'Analyzing ad content...' }, { delay: 15000, msg: 'Applying market context...' },
+      { delay: 25000, msg: 'Generating localization strategy...' }, { delay: 45000, msg: 'Writing localized ad copy...' },
+      { delay: 65000, msg: 'Creating image direction brief...' }, { delay: 80000, msg: 'Generating localized ad image...' },
     ]
-
-    const stepTimers = stepMessages.map(({ delay, msg }) =>
-      setTimeout(() => setStep(msg), delay)
-    )
+    const stepTimers = steps.map(({ delay, msg }) => setTimeout(() => setStep(msg), delay))
 
     try {
       const resp = await fetch(`${API}/pipeline/run`, { method: 'POST', body: formData })
       const data = await resp.json()
-      if (data.status === 'ok') {
-        setCreativeResult(data.data)
-        setStep('')
-      } else {
-        setError(data.error || 'Pipeline failed')
-      }
+      if (data.status === 'ok') { setCreativeResult(data.data); setStep('') }
+      else setError(data.error || 'Pipeline failed')
     } catch (err) {
-      setError(`Network error: ${err.message}. Is the backend running?`)
-    } finally {
-      setLoading(false)
-      clearInterval(timer)
-      stepTimers.forEach(t => clearTimeout(t))
-    }
+      setError(`Network error: ${err.message}`)
+    } finally { setLoading(false); clearInterval(timer); stepTimers.forEach(t => clearTimeout(t)) }
   }
 
-  // ── Direct Edit Pipeline ──
   async function handleDirectSubmit(e) {
     e.preventDefault()
+    if (!imageFile || !editInstructions.trim()) {
+      setShowValidation(true)
+      return
+    }
+    setShowValidation(false)
     const startTime = Date.now()
-
-    if (!imageFile) {
-      setError('Upload an image to edit')
-      return
-    }
-    if (!editInstructions.trim()) {
-      setError('Describe what to change')
-      return
-    }
-
-    console.log('[Direct Edit] Started', { image: imageFile.name, instructions: editInstructions })
     setLoading(true)
     setDirectResult(null)
     setError(null)
     setElapsed(0)
+    setPublishResult(null)
     setStep('Uploading image for editing...')
-
-    setInputSnapshot({
-      type: 'image',
-      imagePreview,
-      text: editInstructions,
-    })
-
-    const timer = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000))
-    }, 1000)
-
+    setInputSnapshot({ type: 'image', imagePreview, text: editInstructions })
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
     const stepTimers = [
-      setTimeout(() => setStep('Sending to image editor (GPT Image 1.5)...'), 3000),
-      setTimeout(() => setStep('Applying edits to image...'), 15000),
+      setTimeout(() => setStep('Sending to image editor...'), 3000),
+      setTimeout(() => setStep('Applying edits...'), 15000),
       setTimeout(() => setStep('Rendering final image...'), 40000),
     ]
-
     const formData = new FormData()
     formData.append('image', imageFile)
     formData.append('instructions', editInstructions)
@@ -223,21 +197,14 @@ function App() {
     try {
       const resp = await fetch(`${API}/direct-edit/run`, { method: 'POST', body: formData })
       const data = await resp.json()
-      if (data.status === 'ok') {
-        setDirectResult(data.data)
-        setStep('')
-      } else {
-        setError(data.error || 'Direct edit failed')
-      }
+      if (data.status === 'ok') { setDirectResult(data.data); setStep('') }
+      else setError(data.error || 'Direct edit failed')
     } catch (err) {
-      setError(`Network error: ${err.message}. Is the backend running?`)
-    } finally {
-      setLoading(false)
-      clearInterval(timer)
-      stepTimers.forEach(t => clearTimeout(t))
-    }
+      setError(`Network error: ${err.message}`)
+    } finally { setLoading(false); clearInterval(timer); stepTimers.forEach(t => clearTimeout(t)) }
   }
 
+  const outputImageUrl = mode === 'creative' ? creativeResult?.outputs?.image_url : directResult?.image_url
   const selectedMarket = MARKETS.find(m => m.code === market)
 
   return (
@@ -248,30 +215,31 @@ function App() {
         <p className="subtitle">AI-powered creative localization for Southeast Asian and Chinese markets. From strategy to final visual, in one pipeline.</p>
       </header>
 
-      {/* Mode Toggle */}
+      {/* ── Mode Toggle ── */}
       <div className="mode-toggle">
-        <button
-          className={`mode-btn ${mode === 'creative' ? 'active' : ''}`}
-          onClick={() => switchMode('creative')}
-          disabled={loading}
-        >
+        <button className={`mode-btn ${mode === 'creative' ? 'active' : ''}`} onClick={() => switchMode('creative')} disabled={loading}>
           <span className="mode-icon">&#9733;</span>
           <div>
             <span className="mode-title">Creative Localization</span>
             <span className="mode-desc">Full pipeline with strategy, copy, and new image</span>
           </div>
         </button>
-        <button
-          className={`mode-btn ${mode === 'direct' ? 'active' : ''}`}
-          onClick={() => switchMode('direct')}
-          disabled={loading}
-        >
+        <button className={`mode-btn ${mode === 'direct' ? 'active' : ''}`} onClick={() => switchMode('direct')} disabled={loading}>
           <span className="mode-icon">&#9998;</span>
           <div>
             <span className="mode-title">Direct Edit</span>
             <span className="mode-desc">Surgically swap elements on the original image</span>
           </div>
         </button>
+      </div>
+
+      {/* Mode explanation */}
+      <div className="mode-explainer">
+        {mode === 'creative' ? (
+          <p>Full AI pipeline: the model analyzes your ad, builds a cultural strategy, writes copy in each target language, and generates a new localized image from scratch.</p>
+        ) : (
+          <p>Upload your existing ad and describe what to change. The AI edits the image in-place, keeping the original composition, lighting, and style intact.</p>
+        )}
       </div>
 
       {/* Loading overlay */}
@@ -282,9 +250,7 @@ function App() {
             <p className="loading-step">{step}</p>
             <p className="loading-elapsed">{elapsed}s elapsed</p>
             <div className="loading-bar">
-              <div className="loading-bar-fill" style={{
-                width: `${Math.min((elapsed / (mode === 'direct' ? 60 : 90)) * 100, 95)}%`
-              }} />
+              <div className="loading-bar-fill" style={{ width: `${Math.min((elapsed / (mode === 'direct' ? 60 : 100)) * 100, 95)}%` }} />
             </div>
           </div>
         </div>
@@ -304,14 +270,19 @@ function App() {
                   </div>
                 </div>
 
-                <textarea
-                  placeholder={"Describe your ad here...\n\nExample: BobaBoss premium bubble tea. Headline: Sip the Difference. Body: Premium pearl milk tea made fresh daily. CTA: Order Now."}
-                  value={adText}
-                  onChange={e => setAdText(e.target.value)}
-                  rows={5}
-                  disabled={loading || !!imageFile}
-                  className={imageFile ? 'disabled-input' : ''}
-                />
+                <div className={`input-wrapper ${showValidation && !adText.trim() && !imageFile ? 'has-error' : ''}`}>
+                  <textarea
+                    placeholder={"Describe your ad here...\n\nExample: BobaBoss premium bubble tea. Headline: Sip the Difference. Body: Premium pearl milk tea made fresh daily. CTA: Order Now."}
+                    value={adText}
+                    onChange={e => { setAdText(e.target.value); setShowValidation(false) }}
+                    rows={5}
+                    disabled={loading || !!imageFile}
+                    className={imageFile ? 'disabled-input' : ''}
+                  />
+                  {showValidation && !adText.trim() && !imageFile && (
+                    <span className="validation-hint">Please enter ad text or upload an image</span>
+                  )}
+                </div>
 
                 <div className="divider-row">
                   <span className="divider-line" />
@@ -341,16 +312,23 @@ function App() {
                   <span className="step-badge">2</span>
                   <div>
                     <h2>Target Market</h2>
-                    <p className="section-desc">Select a Southeast Asian market</p>
+                    <p className="section-desc">Where should this ad land?</p>
                   </div>
                 </div>
                 <div className="market-grid">
                   {MARKETS.map(m => (
-                    <button key={m.code} type="button" className={`market-btn ${market === m.code ? 'active' : ''}`} onClick={() => setMarket(m.code)} disabled={loading}>
-                      <span className="market-flag">{m.flag}</span>
-                      <span className="market-name">{m.name}</span>
-                      <span className="market-code">{m.code}</span>
-                    </button>
+                    <div key={m.code} className="market-btn-wrapper">
+                      <button type="button" className={`market-btn ${market === m.code ? 'active' : ''}`} onClick={() => setMarket(m.code)} disabled={loading}>
+                        <span className="market-flag">{m.flag}</span>
+                        <span className="market-name">{m.name}</span>
+                        <span className="market-code">{m.code}</span>
+                      </button>
+                      <div className="market-tooltip">
+                        <strong>{m.name}</strong>
+                        <span className="tooltip-lang">{m.lang}</span>
+                        <span className="tooltip-vibe">{m.vibe}</span>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -383,7 +361,7 @@ function App() {
                 </div>
                 <div className="field-group" style={{ marginTop: '0.5rem' }}>
                   <label>Additional Notes</label>
-                  <textarea placeholder="Any other instructions..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} disabled={loading} />
+                  <textarea placeholder="Specific directives, brand swaps, visual changes..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} disabled={loading} />
                 </div>
               </section>
 
@@ -394,17 +372,18 @@ function App() {
 
             {/* Creative Results */}
             {creativeResult && (
-              <div className="results">
+              <div className="results" ref={resultsRef}>
                 <div className="results-header">
                   <h2>Localization Results</h2>
                   <span className="results-market">{inputSnapshot?.market?.flag} {inputSnapshot?.market?.name}</span>
                 </div>
 
+                {/* Comparison - always visible */}
                 <div className="result-section comparison-section">
-                  <h3>Input vs. Output Comparison</h3>
+                  <h3>Input vs. Output</h3>
                   <div className="comparison-grid">
                     <div className="comparison-side">
-                      <div className="comparison-label">Original Input</div>
+                      <div className="comparison-label">Original</div>
                       {inputSnapshot?.type === 'image' && inputSnapshot.imagePreview ? (
                         <img src={inputSnapshot.imagePreview} alt="Original ad" className="comparison-image" />
                       ) : (
@@ -415,9 +394,14 @@ function App() {
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                     </div>
                     <div className="comparison-side">
-                      <div className="comparison-label">Localized Output</div>
+                      <div className="comparison-label accent">Localized</div>
                       {creativeResult.outputs?.image_url ? (
-                        <img src={creativeResult.outputs.image_url} alt="Localized ad" className="comparison-image" />
+                        <div className="image-with-actions">
+                          <img src={creativeResult.outputs.image_url} alt="Localized ad" className="comparison-image" />
+                          <button className="img-download-btn" onClick={() => downloadImage(creativeResult.outputs.image_url, `adapt-${market}.jpg`)} title="Download image">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                          </button>
+                        </div>
                       ) : (
                         <div className="comparison-text-card placeholder"><p>Image generation unavailable</p></div>
                       )}
@@ -425,90 +409,96 @@ function App() {
                   </div>
                 </div>
 
+                {/* Collapsible: Strategy */}
                 <div className="result-section">
-                  <h3>Localization Strategy</h3>
-                  <div className="strategy-grid">
-                    <div className="strategy-card keep">
-                      <h4>Keep</h4>
-                      <ul>{creativeResult.strategy?.keep?.map((k, i) => <li key={i}>{k}</li>)}</ul>
-                    </div>
-                    <div className="strategy-card change">
-                      <h4>Change</h4>
-                      <ul>{creativeResult.strategy?.change?.map((c, i) => <li key={i}>{c}</li>)}</ul>
-                    </div>
-                  </div>
-                  {creativeResult.strategy?.cultural_adaptations?.length > 0 && (
-                    <div className="strategy-card adapt">
-                      <h4>Cultural Adaptations</h4>
-                      <ul>{creativeResult.strategy.cultural_adaptations.map((a, i) => <li key={i}>{a}</li>)}</ul>
-                    </div>
-                  )}
-                  {creativeResult.strategy?.language_decisions && (
-                    <div className="strategy-card lang">
-                      <h4>Language Decisions</h4>
-                      <p>{creativeResult.strategy.language_decisions}</p>
+                  <button className="section-toggle" onClick={() => toggleSection('strategy')}>
+                    <h3>Localization Strategy</h3>
+                    <span className={`toggle-arrow ${openSections.strategy ? 'open' : ''}`}>&#9662;</span>
+                  </button>
+                  {openSections.strategy && (
+                    <div className="section-body">
+                      <div className="strategy-grid">
+                        <div className="strategy-card keep"><h4>Keep</h4><ul>{creativeResult.strategy?.keep?.map((k, i) => <li key={i}>{k}</li>)}</ul></div>
+                        <div className="strategy-card change"><h4>Change</h4><ul>{creativeResult.strategy?.change?.map((c, i) => <li key={i}>{c}</li>)}</ul></div>
+                      </div>
+                      {creativeResult.strategy?.cultural_adaptations?.length > 0 && (
+                        <div className="strategy-card adapt"><h4>Cultural Adaptations</h4><ul>{creativeResult.strategy.cultural_adaptations.map((a, i) => <li key={i}>{a}</li>)}</ul></div>
+                      )}
+                      {creativeResult.strategy?.language_decisions && (
+                        <div className="strategy-card lang"><h4>Language Decisions</h4><p>{creativeResult.strategy.language_decisions}</p></div>
+                      )}
                     </div>
                   )}
                 </div>
 
+                {/* Collapsible: Copy */}
                 <div className="result-section">
-                  <h3>Localized Ad Copy</h3>
-                  <div className="copies-grid">
-                    {creativeResult.outputs?.localized_copies?.map((copy, i) => (
-                      <div key={i} className="copy-card">
-                        <div className="copy-lang">{copy.language}</div>
-                        <div className="copy-headline">{copy.headline}</div>
-                        <div className="copy-body">{copy.body}</div>
-                        <div className="copy-cta">{copy.cta}</div>
-                        {(copy.tone_notes || copy.cultural_reasoning) && (
-                          <div className="copy-meta">
-                            {copy.tone_notes && <span>Tone: {copy.tone_notes}</span>}
-                            {copy.cultural_reasoning && <span>Reasoning: {copy.cultural_reasoning}</span>}
+                  <button className="section-toggle" onClick={() => toggleSection('copy')}>
+                    <h3>Localized Ad Copy</h3>
+                    <span className={`toggle-arrow ${openSections.copy ? 'open' : ''}`}>&#9662;</span>
+                  </button>
+                  {openSections.copy && (
+                    <div className="section-body">
+                      <div className="copies-grid">
+                        {creativeResult.outputs?.localized_copies?.map((copy, i) => (
+                          <div key={i} className="copy-card">
+                            <div className="copy-lang">{copy.language}</div>
+                            <div className="copy-headline">{copy.headline}</div>
+                            <div className="copy-body">{copy.body}</div>
+                            <div className="copy-cta-text">{copy.cta}</div>
+                            {(copy.tone_notes || copy.cultural_reasoning) && (
+                              <div className="copy-meta">
+                                {copy.tone_notes && <span>Tone: {copy.tone_notes}</span>}
+                                {copy.cultural_reasoning && <span>Reasoning: {copy.cultural_reasoning}</span>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Collapsible: Image Brief */}
+                <div className="result-section">
+                  <button className="section-toggle" onClick={() => toggleSection('brief')}>
+                    <h3>Image Direction Brief</h3>
+                    <span className={`toggle-arrow ${openSections.brief ? 'open' : ''}`}>&#9662;</span>
+                  </button>
+                  {openSections.brief && (
+                    <div className="section-body">
+                      <div className="brief-content">
+                        <p>{creativeResult.outputs?.image_brief?.description}</p>
+                        {creativeResult.outputs?.image_brief?.style_notes && (
+                          <div className="brief-detail"><strong>Style:</strong> {creativeResult.outputs.image_brief.style_notes}</div>
+                        )}
+                        {creativeResult.outputs?.image_brief?.cultural_elements?.length > 0 && (
+                          <div className="brief-tags">
+                            {creativeResult.outputs.image_brief.cultural_elements.map((el, i) => <span key={i} className="tag">{el}</span>)}
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="result-section">
-                  <h3>Image Direction Brief</h3>
-                  <div className="brief-content">
-                    <p>{creativeResult.outputs?.image_brief?.description}</p>
-                    {creativeResult.outputs?.image_brief?.style_notes && (
-                      <div className="brief-detail"><strong>Style:</strong> {creativeResult.outputs.image_brief.style_notes}</div>
-                    )}
-                    {creativeResult.outputs?.image_brief?.cultural_elements?.length > 0 && (
-                      <div className="brief-tags">
-                        {creativeResult.outputs.image_brief.cultural_elements.map((el, i) => <span key={i} className="tag">{el}</span>)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Publish to TikTok */}
+                {/* Publish */}
                 {creativeResult.outputs?.image_url && (
                   <div className="result-section publish-section">
                     <h3>Publish</h3>
-                    <p className="publish-desc">Post the localized ad directly to TikTok</p>
-                    <button
-                      className="publish-btn"
-                      onClick={() => handlePublishToTikTok(
-                        creativeResult.outputs.image_url,
-                        getCreativeCaption()
-                      )}
-                      disabled={publishing}
-                    >
-                      {publishing ? 'Publishing...' : 'Post to TikTok'}
-                    </button>
+                    <div className="publish-actions">
+                      <button className="publish-btn" onClick={() => downloadImage(creativeResult.outputs.image_url, `adapt-${market}.jpg`)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        Download Image
+                      </button>
+                      <button className="publish-btn publish-btn-tiktok" onClick={() => handlePublishToTikTok(creativeResult.outputs.image_url, getCreativeCaption())} disabled={publishing}>
+                        {publishing ? 'Publishing...' : 'Post to TikTok'}
+                      </button>
+                    </div>
                     {publishResult && (
                       <div className={`publish-result ${publishResult.success ? 'success' : 'fail'}`}>
                         {publishResult.message}
-                        {publishResult.link && (
-                          <a href={publishResult.link} target="_blank" rel="noopener noreferrer" className="publish-link">
-                            View on TikTok
-                          </a>
-                        )}
+                        {publishResult.link && <a href={publishResult.link} target="_blank" rel="noopener noreferrer" className="publish-link">View on TikTok</a>}
                       </div>
                     )}
                   </div>
@@ -531,7 +521,7 @@ function App() {
                   </div>
                 </div>
 
-                <div className="upload-zone" onClick={() => !loading && fileInputRef.current?.click()}>
+                <div className={`upload-zone ${showValidation && !imageFile ? 'has-error' : ''}`} onClick={() => !loading && fileInputRef.current?.click()}>
                   {imagePreview ? (
                     <div className="preview-container">
                       <img src={imagePreview} alt="Preview" className="upload-preview" />
@@ -546,6 +536,7 @@ function App() {
                   )}
                   <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} disabled={loading} hidden />
                 </div>
+                {showValidation && !imageFile && <span className="validation-hint">Please upload an image</span>}
               </section>
 
               <section className="form-section">
@@ -556,13 +547,16 @@ function App() {
                     <p className="section-desc">Describe exactly what to change. Be specific.</p>
                   </div>
                 </div>
-                <textarea
-                  placeholder={"Describe the specific changes to make...\n\nExample:\n- Replace the Coca-Cola logo/text with Pokka Green Tea branding\n- Replace the Pepsi cape with Authentic Tea House Ayataka branding\n- Change the headline text to 'Kami ucapkan Halloween yang menyeramkan!'"}
-                  value={editInstructions}
-                  onChange={e => setEditInstructions(e.target.value)}
-                  rows={6}
-                  disabled={loading}
-                />
+                <div className={`input-wrapper ${showValidation && !editInstructions.trim() ? 'has-error' : ''}`}>
+                  <textarea
+                    placeholder={"Describe the specific changes...\n\nExample:\n- Replace the Coca-Cola logo with Pokka Green Tea branding\n- Change the headline to Thai language\n- Swap the Pepsi cape with Ayataka branding"}
+                    value={editInstructions}
+                    onChange={e => { setEditInstructions(e.target.value); setShowValidation(false) }}
+                    rows={6}
+                    disabled={loading}
+                  />
+                  {showValidation && !editInstructions.trim() && <span className="validation-hint">Please describe what to change</span>}
+                </div>
               </section>
 
               <button type="submit" className="submit-btn submit-btn-edit" disabled={loading}>
@@ -572,7 +566,7 @@ function App() {
 
             {/* Direct Edit Results */}
             {directResult && (
-              <div className="results">
+              <div className="results" ref={resultsRef}>
                 <div className="results-header">
                   <h2>Edit Results</h2>
                   <span className="results-market">Direct Edit</span>
@@ -582,18 +576,21 @@ function App() {
                   <h3>Before & After</h3>
                   <div className="comparison-grid">
                     <div className="comparison-side">
-                      <div className="comparison-label">Original</div>
-                      {inputSnapshot?.imagePreview && (
-                        <img src={inputSnapshot.imagePreview} alt="Original" className="comparison-image" />
-                      )}
+                      <div className="comparison-label">Before</div>
+                      {inputSnapshot?.imagePreview && <img src={inputSnapshot.imagePreview} alt="Before" className="comparison-image" />}
                     </div>
                     <div className="comparison-arrow">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                     </div>
                     <div className="comparison-side">
-                      <div className="comparison-label">Edited</div>
+                      <div className="comparison-label accent">After</div>
                       {directResult.image_url ? (
-                        <img src={directResult.image_url} alt="Edited" className="comparison-image" />
+                        <div className="image-with-actions">
+                          <img src={directResult.image_url} alt="After" className="comparison-image" />
+                          <button className="img-download-btn" onClick={() => downloadImage(directResult.image_url, 'adapt-edit.jpg')} title="Download image">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                          </button>
+                        </div>
                       ) : (
                         <div className="comparison-text-card placeholder"><p>Edit failed</p></div>
                       )}
@@ -602,35 +599,28 @@ function App() {
                 </div>
 
                 <div className="result-section">
-                  <h3>Applied Instructions</h3>
+                  <h3>Applied Changes</h3>
                   <div className="brief-content">
                     <p style={{ whiteSpace: 'pre-wrap' }}>{directResult.instructions}</p>
                   </div>
                 </div>
 
-                {/* Publish to TikTok */}
                 {directResult.image_url && (
                   <div className="result-section publish-section">
                     <h3>Publish</h3>
-                    <p className="publish-desc">Post the edited ad directly to TikTok</p>
-                    <button
-                      className="publish-btn"
-                      onClick={() => handlePublishToTikTok(
-                        directResult.image_url,
-                        editInstructions
-                      )}
-                      disabled={publishing}
-                    >
-                      {publishing ? 'Publishing...' : 'Post to TikTok'}
-                    </button>
+                    <div className="publish-actions">
+                      <button className="publish-btn" onClick={() => downloadImage(directResult.image_url, 'adapt-edit.jpg')}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        Download Image
+                      </button>
+                      <button className="publish-btn publish-btn-tiktok" onClick={() => handlePublishToTikTok(directResult.image_url, editInstructions)} disabled={publishing}>
+                        {publishing ? 'Publishing...' : 'Post to TikTok'}
+                      </button>
+                    </div>
                     {publishResult && (
                       <div className={`publish-result ${publishResult.success ? 'success' : 'fail'}`}>
                         {publishResult.message}
-                        {publishResult.link && (
-                          <a href={publishResult.link} target="_blank" rel="noopener noreferrer" className="publish-link">
-                            View on TikTok
-                          </a>
-                        )}
+                        {publishResult.link && <a href={publishResult.link} target="_blank" rel="noopener noreferrer" className="publish-link">View on TikTok</a>}
                       </div>
                     )}
                   </div>
