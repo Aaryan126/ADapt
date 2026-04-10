@@ -81,39 +81,74 @@ def build_image_brief_prompt(req: GenerateRequest, copies: list[LocalizedCopy]) 
     ad = req.ad_info
     market = req.market
     strategy = req.strategy
+    custom = req.custom_instructions
 
     primary_copy = copies[0] if copies else None
 
-    prompt = f"""You are a creative director specializing in Southeast Asian advertising visuals.
+    # Build the original image description block from all available info
+    original_description_parts = []
+    if ad.raw_text:
+        original_description_parts.append(f"Full analysis of the original ad:\n{ad.raw_text}")
+    if ad.visual_style:
+        original_description_parts.append(f"Visual style: {ad.visual_style}")
+    if ad.brand_identity:
+        original_description_parts.append(f"Brand identity: {ad.brand_identity}")
+    if ad.product:
+        original_description_parts.append(f"Product: {ad.product}")
+    original_description = "\n".join(original_description_parts)
 
-## Original Ad Visual Style
-{ad.visual_style}
+    # Build explicit custom overrides block
+    custom_overrides = ""
+    if custom:
+        override_parts = []
+        if custom.freeform_notes:
+            override_parts.append(f"EXPLICIT USER OVERRIDES: {custom.freeform_notes}")
+        if custom.tone:
+            override_parts.append(f"Tone override: {custom.tone}")
+        if custom.language_mix:
+            override_parts.append(f"Language mix: {custom.language_mix}")
+        if custom.audience_segment:
+            override_parts.append(f"Target audience: {custom.audience_segment}")
+        if custom.platform:
+            override_parts.append(f"Platform: {custom.platform}")
+        if override_parts:
+            custom_overrides = "\n## User's Custom Instructions (MUST FOLLOW)\n" + "\n".join(override_parts)
 
-## Brand Identity
-{ad.brand_identity}
+    prompt = f"""You are a creative director creating an image direction brief for a localized ad.
+
+## CRITICAL RULE
+You MUST preserve the original ad's composition, camera angle, lighting, mood, scene layout, and visual concept.
+The localized image should look like a near-identical version of the original, with ONLY the specific changes listed below applied.
+Do NOT reimagine the scene. Do NOT change the setting, number of subjects, or overall concept.
+Think of this as a targeted edit, not a redesign.
+
+## Original Ad Description (PRESERVE THIS EXACTLY)
+{original_description}
 
 ## Target Market: {market.name}
 - Cultural Context: {market.cultural_context}
-- Values: {market.values}
-- Taboos: {market.taboos}
+- Taboos to avoid: {market.taboos}
 
-## Localization Strategy
-- Cultural Adaptations: {json.dumps(strategy.cultural_adaptations)}
+## Specific Changes to Apply
+- Cultural Adaptations from strategy: {json.dumps(strategy.cultural_adaptations)}
+{custom_overrides}
 
 ## Primary Localized Headline
 {primary_copy.headline if primary_copy else ad.headline}
 
 ## Task
-Create a detailed image direction brief for the localized ad visual. Return as JSON:
+Create a detailed image direction brief that keeps the original composition intact but applies ONLY the specific changes listed above.
+
+Return as JSON:
 {{
-  "description": "detailed description of what the localized visual should look like (2-3 paragraphs)",
-  "style_notes": "notes on visual style, photography direction, design elements",
-  "cultural_elements": ["list of cultural elements to include"],
-  "colors": ["recommended color palette"],
+  "description": "Describe the image. Start by restating the original scene exactly, then note ONLY what changes. Be very specific about what stays the same vs what changes.",
+  "style_notes": "MUST match the original style. Note the original lighting, mood, and photography style to preserve.",
+  "cultural_elements": ["list ONLY elements that differ from the original"],
+  "colors": ["color palette - should closely match original unless a specific change requires it"],
   "text_overlays": ["text that should appear on the image"]
 }}
 
-The visual should feel authentic to {market.name}, not like a translated Western ad."""
+Remember: The output image should be immediately recognizable as the same ad, just localized."""
 
     return prompt
 
@@ -181,14 +216,23 @@ async def generate_outputs(req: GenerateRequest):
         logger.warning("[STEP 5b] Could not parse brief JSON, using raw text")
 
     # Step 5c: Generate localized ad image
-    image_gen_prompt = f"""Create an advertisement image for {req.market.name} market.
+    # Build custom overrides reminder for the image gen prompt
+    custom_reminder = ""
+    if req.custom_instructions and req.custom_instructions.freeform_notes:
+        custom_reminder = f"\n\nCRITICAL CHANGES TO APPLY: {req.custom_instructions.freeform_notes}"
 
+    image_gen_prompt = f"""Recreate this advertisement image with targeted localization changes for the {req.market.name} market.
+
+IMPORTANT: Keep the SAME composition, camera angle, lighting, mood, and overall scene layout as the original.
+Only apply the specific changes described below. This is a localization edit, NOT a redesign.
+
+Original scene and composition to preserve:
 {image_brief.description}
 
-Style: {image_brief.style_notes}
-Cultural elements: {', '.join(image_brief.cultural_elements)}
-Colors: {', '.join(image_brief.colors)}
-Text overlays: {', '.join(image_brief.text_overlays)}"""
+Style (MATCH THIS EXACTLY): {image_brief.style_notes}
+Specific changes: {', '.join(image_brief.cultural_elements)}
+Color palette: {', '.join(image_brief.colors)}
+Text overlays: {', '.join(image_brief.text_overlays)}{custom_reminder}"""
 
     logger.info(f"[STEP 5c] Generating ad image (model={settings.model_image_gen})")
     step_start = time.time()

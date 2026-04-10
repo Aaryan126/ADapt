@@ -46,9 +46,9 @@ def build_strategy_prompt(req: StrategyRequest) -> str:
         if custom.platform:
             parts.append(f"- Platform: {custom.platform}")
         if custom.freeform_notes:
-            parts.append(f"- Notes: {custom.freeform_notes}")
+            parts.append(f"- MANDATORY CHANGES: {custom.freeform_notes}")
         if parts:
-            prompt += "\n## Custom Instructions\n" + "\n".join(parts)
+            prompt += "\n## Custom Instructions (MUST FOLLOW - these are non-negotiable overrides from the user)\n" + "\n".join(parts)
 
     prompt += """
 

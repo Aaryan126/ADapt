@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     model_strategy: str = "deepseek-ai/DeepSeek-V3.2"
     model_copywriting: str = "deepseek-ai/DeepSeek-V3.2"
     model_image_gen: str = "gemini-3.1-flash-image-preview"  # queue-based API
+    model_direct_edit: str = "gemini-3.1-flash-image-preview"  # queue-based, supports image input
 
     class Config:
         env_prefix = ""

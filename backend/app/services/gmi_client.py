@@ -90,14 +90,47 @@ async def analyze_image(image_bytes: bytes, prompt: str) -> str:
     )
 
 
-async def generate_image(prompt: str, max_wait: int = 120) -> str | None:
-    """Generate image via GMI queue-based API. Returns image URL on success."""
+async def generate_image(
+    prompt: str,
+    max_wait: int = 120,
+    model_override: str | None = None,
+    source_image_b64: str | None = None,
+) -> str | None:
+    """Generate or edit image via GMI queue-based API. Returns image URL on success.
+
+    If source_image_b64 is provided, uses image-to-image editing (e.g. gpt-image-1.5).
+    Otherwise, uses text-to-image generation.
+    """
     settings = get_settings()
-    logger.info(f"[IMAGE] Submitting image generation request (model={settings.model_image_gen})")
+    model = model_override or settings.model_image_gen
+    mode = "edit" if source_image_b64 else "generate"
+    logger.info(f"[IMAGE] Submitting image {mode} request (model={model})")
     start_time = time.time()
 
-    # Submit request to queue API
-    async with httpx.AsyncClient(timeout=60) as client:
+    payload = {"prompt": prompt}
+    if source_image_b64:
+        # Use Gemini's contents format for image editing (multi-turn style)
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {
+                            "inlineData": {
+                                "mimeType": "image/png",
+                                "data": source_image_b64,
+                            }
+                        },
+                        {"text": prompt},
+                    ],
+                }
+            ],
+            "image_size": "1K",
+        }
+
+    # Submit request to queue API (longer timeout for large image payloads)
+    submit_timeout = 120 if source_image_b64 else 60
+    async with httpx.AsyncClient(timeout=submit_timeout) as client:
         try:
             resp = await client.post(
                 f"{settings.gmi_queue_url}/requests",
@@ -106,10 +139,8 @@ async def generate_image(prompt: str, max_wait: int = 120) -> str | None:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": settings.model_image_gen,
-                    "payload": {
-                        "prompt": prompt,
-                    },
+                    "model": model,
+                    "payload": payload,
                 },
             )
             resp.raise_for_status()
