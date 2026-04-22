@@ -170,7 +170,6 @@ function App() {
     finally { setLoading(false); clearInterval(timer); stepTimers.forEach(t => clearTimeout(t)) }
   }
 
-  const outputImageUrl = mode === 'creative' ? creativeResult?.outputs?.image_url : directResult?.image_url
   const hasResults = !!(creativeResult || directResult)
 
   return (
