@@ -89,3 +89,18 @@ class ApiResponse(BaseModel):
     status: str = "ok"
     data: dict = {}
     error: Optional[str] = None
+
+
+class BillingEmailRequest(BaseModel):
+    email: str
+
+
+class BillingStatus(BaseModel):
+    email: str
+    active: bool = False
+    status: str = "inactive"
+    customer_id: Optional[str] = None
+    subscription_id: Optional[str] = None
+    current_period_end: Optional[str] = None
+    checkout_url: Optional[str] = None
+    portal_url: Optional[str] = None

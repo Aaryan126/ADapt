@@ -35,8 +35,9 @@ async def intake_text(ad_info: AdInfo):
 @router.post("/image")
 async def intake_image(file: UploadFile = File(...)):
     image_bytes = await file.read()
+    mime_type = file.content_type or "image/png"
 
-    result = await analyze_image(image_bytes, IMAGE_ANALYSIS_PROMPT)
+    result = await analyze_image(image_bytes, IMAGE_ANALYSIS_PROMPT, mime_type=mime_type)
 
     # Try to parse JSON from the response
     import json

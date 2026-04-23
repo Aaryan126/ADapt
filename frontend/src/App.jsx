@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import './App.css'
 
 const API = 'http://localhost:8000/api/v1'
+const FREE_GENERATIONS = 3
+const FREE_USAGE_KEY = 'adapt-free-generations-used'
 
 const MARKETS = [
   { code: 'SG', name: 'Singapore', flag: '\uD83C\uDDF8\uD83C\uDDEC', lang: 'English + Mandarin, Malay, Tamil', vibe: 'Kiasu culture, Singlish wordplay, food-obsessed' },
@@ -39,7 +41,14 @@ function App() {
 
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState(null)
-  const [openSections, setOpenSections] = useState({ strategy: true, copy: true, brief: false })
+  const [openSections, setOpenSections] = useState({ strategy: true, copy: true, brief: true })
+  const [billingEmail, setBillingEmail] = useState(() => window.localStorage.getItem('adapt-billing-email') || '')
+  const [billingConfig, setBillingConfig] = useState({ enabled: false, plan_name: 'ADapt Pro', price_display: '$29/month' })
+  const [billingStatus, setBillingStatus] = useState(null)
+  const [billingBusy, setBillingBusy] = useState(false)
+  const [billingNotice, setBillingNotice] = useState('')
+  const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => Number(window.localStorage.getItem(FREE_USAGE_KEY) || '0'))
+  const [showBillingPanel, setShowBillingPanel] = useState(true)
 
   function toggleSection(key) { setOpenSections(prev => ({ ...prev, [key]: !prev[key] })) }
 
@@ -48,6 +57,67 @@ function App() {
       resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [creativeResult, directResult])
+
+  useEffect(() => {
+    window.localStorage.setItem('adapt-billing-email', billingEmail)
+  }, [billingEmail])
+
+  useEffect(() => {
+    window.localStorage.setItem(FREE_USAGE_KEY, String(freeGenerationsUsed))
+  }, [freeGenerationsUsed])
+
+  useEffect(() => {
+    async function loadBilling() {
+      try {
+        const configResp = await fetch(`${API}/billing/config`)
+        const configData = await configResp.json()
+        if (configData.status === 'ok') {
+          setBillingConfig(configData.data)
+        }
+
+        const params = new URLSearchParams(window.location.search)
+        const checkoutState = params.get('checkout')
+        const sessionId = params.get('session_id')
+
+        if (checkoutState === 'success' && sessionId) {
+          setBillingBusy(true)
+          const confirmResp = await fetch(`${API}/billing/confirm?session_id=${encodeURIComponent(sessionId)}`)
+          const confirmData = await confirmResp.json()
+          if (confirmData.status === 'ok') {
+            setBillingStatus(confirmData.data)
+            setBillingEmail(confirmData.data.email || '')
+            setBillingNotice('Subscription activated.')
+          } else {
+            setError(confirmData.error || 'Unable to confirm checkout session.')
+          }
+          window.history.replaceState({}, document.title, window.location.pathname)
+          setBillingBusy(false)
+          return
+        }
+
+        if (checkoutState === 'cancelled') {
+          setBillingNotice('Checkout was cancelled.')
+          window.history.replaceState({}, document.title, window.location.pathname)
+        }
+
+        const savedEmail = window.localStorage.getItem('adapt-billing-email') || ''
+        if (savedEmail && configData?.data?.enabled) {
+          setBillingBusy(true)
+          const statusResp = await fetch(`${API}/billing/status?email=${encodeURIComponent(savedEmail)}`)
+          const statusData = await statusResp.json()
+          if (statusData.status === 'ok') {
+            setBillingStatus(statusData.data)
+          }
+          setBillingBusy(false)
+        }
+      } catch (err) {
+        setError(`Billing error: ${err.message}`)
+        setBillingBusy(false)
+      }
+    }
+
+    loadBilling()
+  }, [])
 
   function loadMockResults() {
     const mockImage = '/mock-output.png'
@@ -116,6 +186,116 @@ function App() {
     return `${c.headline}\n\n${c.body}\n\n${c.cta}`
   }
 
+  function incrementFreeUsage() {
+    setFreeGenerationsUsed(prev => prev + 1)
+  }
+
+  const freeGenerationsRemaining = Math.max(FREE_GENERATIONS - freeGenerationsUsed, 0)
+  const hasActiveSubscription = !!billingStatus?.active
+  const needsSubscription = !hasActiveSubscription && freeGenerationsRemaining === 0
+
+  async function fetchBillingStatus(emailArg, { silent = false } = {}) {
+    const normalized = emailArg.trim().toLowerCase()
+    if (!normalized) {
+      setBillingStatus(null)
+      return null
+    }
+    if (!silent) setBillingBusy(true)
+    try {
+      const resp = await fetch(`${API}/billing/status?email=${encodeURIComponent(normalized)}`)
+      const data = await resp.json()
+      if (data.status === 'ok') {
+        setBillingStatus(data.data)
+        return data.data
+      }
+      if (!silent) setError(data.error || 'Unable to fetch subscription status.')
+      return null
+    } catch (err) {
+      if (!silent) setError(`Billing error: ${err.message}`)
+      return null
+    } finally {
+      if (!silent) setBillingBusy(false)
+    }
+  }
+
+  async function ensureActiveSubscription() {
+    if (freeGenerationsRemaining > 0) return true
+    if (!billingEmail.trim()) {
+      setError('Your 3 free generations are used up. Enter a billing email to subscribe.')
+      return false
+    }
+    const status = await fetchBillingStatus(billingEmail, { silent: true })
+    if (!status?.active) {
+      setBillingStatus(status)
+      setError('Your 3 free generations are used up. Subscribe to keep generating and editing ads.')
+      return false
+    }
+    return true
+  }
+
+  async function handleCheckout() {
+    if (!billingConfig.enabled) {
+      setError('Stripe billing UI is visible, but backend Stripe config is not complete yet.')
+      setShowBillingPanel(true)
+      return
+    }
+    if (!billingEmail.trim()) {
+      setError('Enter your billing email before starting checkout.')
+      return
+    }
+    setBillingBusy(true)
+    setBillingNotice('')
+    setError(null)
+    try {
+      const resp = await fetch(`${API}/billing/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: billingEmail.trim() }),
+      })
+      const data = await resp.json()
+      if (data.status === 'ok' && data.data?.checkout_url) {
+        window.location.href = data.data.checkout_url
+        return
+      }
+      setError(data.error || 'Unable to create Stripe checkout session.')
+    } catch (err) {
+      setError(`Billing error: ${err.message}`)
+    } finally {
+      setBillingBusy(false)
+    }
+  }
+
+  async function handleManageBilling() {
+    if (!billingConfig.enabled) {
+      setError('Stripe customer portal is not available until backend Stripe config is complete.')
+      setShowBillingPanel(true)
+      return
+    }
+    if (!billingEmail.trim()) {
+      setError('Enter your billing email before opening the customer portal.')
+      return
+    }
+    setBillingBusy(true)
+    setError(null)
+    try {
+      const resp = await fetch(`${API}/billing/portal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: billingEmail.trim() }),
+      })
+      const data = await resp.json()
+      if (data.status === 'ok' && data.data?.portal_url) {
+        window.location.href = data.data.portal_url
+        return
+      }
+      setError(data.error || 'Unable to open the Stripe customer portal.')
+    } catch (err) {
+      setError(`Billing error: ${err.message}`)
+    } finally {
+      setBillingBusy(false)
+    }
+  }
+
   function handleImageChange(e) {
     const file = e.target.files[0]
     if (file) { setImageFile(file); setShowValidation(false); const r = new FileReader(); r.onloadend = () => setImagePreview(r.result); r.readAsDataURL(file) }
@@ -127,10 +307,11 @@ function App() {
   async function handleCreativeSubmit(e) {
     e.preventDefault()
     if (!imageFile && !adText.trim()) { setShowValidation(true); return }
+    if (!(await ensureActiveSubscription())) return
     setShowValidation(false)
     const startTime = Date.now()
     setLoading(true); setCreativeResult(null); setError(null); setElapsed(0); setPublishResult(null)
-    setOpenSections({ strategy: true, copy: true, brief: false })
+    setOpenSections({ strategy: true, copy: true, brief: true })
     setInputSnapshot({ type: imageFile ? 'image' : 'text', imagePreview, text: adText, market: MARKETS.find(m => m.code === market) })
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
     const formData = new FormData()
@@ -142,12 +323,17 @@ function App() {
     if (audience) formData.append('audience_segment', audience)
     if (platform) formData.append('platform', platform)
     if (notes) formData.append('freeform_notes', notes)
+    if (billingConfig.enabled) formData.append('customer_email', billingEmail.trim())
     const steps = [{ delay: 3000, msg: 'Analyzing ad content...' }, { delay: 15000, msg: 'Applying market context...' }, { delay: 25000, msg: 'Generating strategy...' }, { delay: 45000, msg: 'Writing localized copy...' }, { delay: 65000, msg: 'Creating image brief...' }, { delay: 80000, msg: 'Generating ad image...' }]
     const stepTimers = steps.map(({ delay, msg }) => setTimeout(() => setStep(msg), delay))
     try {
       const resp = await fetch(`${API}/pipeline/run`, { method: 'POST', body: formData })
       const data = await resp.json()
-      if (data.status === 'ok') { setCreativeResult(data.data); setStep('') } else setError(data.error || 'Pipeline failed')
+      if (data.status === 'ok') {
+        setCreativeResult(data.data)
+        setStep('')
+        if (!hasActiveSubscription && freeGenerationsRemaining > 0) incrementFreeUsage()
+      } else setError(data.error || data.detail || 'Pipeline failed')
     } catch (err) { setError(`Network error: ${err.message}`) }
     finally { setLoading(false); clearInterval(timer); stepTimers.forEach(t => clearTimeout(t)) }
   }
@@ -155,17 +341,22 @@ function App() {
   async function handleDirectSubmit(e) {
     e.preventDefault()
     if (!imageFile || !editInstructions.trim()) { setShowValidation(true); return }
+    if (!(await ensureActiveSubscription())) return
     setShowValidation(false)
     const startTime = Date.now()
     setLoading(true); setDirectResult(null); setError(null); setElapsed(0); setPublishResult(null); setStep('Uploading image...')
     setInputSnapshot({ type: 'image', imagePreview, text: editInstructions })
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
     const stepTimers = [setTimeout(() => setStep('Sending to editor...'), 3000), setTimeout(() => setStep('Applying edits...'), 15000), setTimeout(() => setStep('Rendering...'), 40000)]
-    const formData = new FormData(); formData.append('image', imageFile); formData.append('instructions', editInstructions)
+    const formData = new FormData(); formData.append('image', imageFile); formData.append('instructions', editInstructions); if (billingConfig.enabled) formData.append('customer_email', billingEmail.trim())
     try {
       const resp = await fetch(`${API}/direct-edit/run`, { method: 'POST', body: formData })
       const data = await resp.json()
-      if (data.status === 'ok') { setDirectResult(data.data); setStep('') } else setError(data.error || 'Edit failed')
+      if (data.status === 'ok') {
+        setDirectResult(data.data)
+        setStep('')
+        if (!hasActiveSubscription && freeGenerationsRemaining > 0) incrementFreeUsage()
+      } else setError(data.error || data.detail || 'Edit failed')
     } catch (err) { setError(`Network error: ${err.message}`) }
     finally { setLoading(false); clearInterval(timer); stepTimers.forEach(t => clearTimeout(t)) }
   }
@@ -185,6 +376,9 @@ function App() {
         </div>
         <div className="topbar-right">
           {loading && <span className="topbar-status"><span className="status-dot" />{step} ({elapsed}s)</span>}
+          <button className={`account-btn ${showBillingPanel ? 'active' : ''}`} onClick={() => setShowBillingPanel(prev => !prev)}>
+            Account
+          </button>
           <button className="preview-btn" onClick={loadMockResults}>Preview</button>
         </div>
       </div>
@@ -197,6 +391,66 @@ function App() {
       )}
 
       {error && <div className="error-bar">{error}</div>}
+      {showBillingPanel && (
+        <div className={`billing-bar ${needsSubscription ? 'billing-bar-locked' : ''}`}>
+          <div className="billing-copy">
+            <span className="billing-kicker">{hasActiveSubscription ? 'Subscription' : 'Free Trial'}</span>
+            <div className="billing-plan">{billingConfig.plan_name} <span>{billingConfig.price_display}</span></div>
+            <p className="billing-text">
+              {hasActiveSubscription
+                ? 'Your subscription is active. You can keep generating and editing ads.'
+                : freeGenerationsRemaining > 0
+                  ? `You have ${freeGenerationsRemaining} of ${FREE_GENERATIONS} free generations left before billing kicks in.`
+                  : 'Your free generations are used up. Subscribe to unlock unlimited generations and edits.'}
+            </p>
+          </div>
+          <div className="billing-controls">
+            <input
+              className="billing-input"
+              type="email"
+              placeholder="Billing email"
+              value={billingEmail}
+              onChange={e => { setBillingEmail(e.target.value); setBillingNotice('') }}
+              onBlur={() => billingEmail.trim() && fetchBillingStatus(billingEmail)}
+            />
+            <div className="billing-actions">
+              <button type="button" className="billing-btn billing-btn-primary" onClick={handleCheckout} disabled={billingBusy}>
+                {billingBusy ? 'Working...' : freeGenerationsRemaining > 0 ? 'Start Subscription' : 'Unlock Unlimited'}
+              </button>
+              <button type="button" className="billing-btn" onClick={handleManageBilling} disabled={billingBusy || !billingEmail.trim()}>
+                Manage
+              </button>
+            </div>
+          </div>
+          <div className={`billing-chip ${billingStatus?.active ? 'ok' : needsSubscription ? 'warn' : 'trial'}`}>
+            {billingBusy
+              ? 'Checking billing...'
+              : billingStatus?.active
+                ? `Active${billingStatus.current_period_end ? ` until ${new Date(billingStatus.current_period_end).toLocaleDateString()}` : ''}`
+                : freeGenerationsRemaining > 0
+                  ? `${freeGenerationsRemaining} free left`
+                  : billingNotice || (billingConfig.enabled ? 'Subscription required' : 'Stripe setup pending')}
+          </div>
+        </div>
+      )}
+
+      {needsSubscription && (
+        <div className="paywall-banner">
+          <div className="paywall-copy">
+            <span className="paywall-kicker">Free Limit Reached</span>
+            <h3>Subscribe to keep generating localized ads</h3>
+            <p>Your first 3 generations were free. Start a subscription to unlock unlimited image generations, direct edits, and billing management via Stripe.</p>
+          </div>
+          <div className="paywall-actions">
+            <button type="button" className="billing-btn billing-btn-primary" onClick={handleCheckout} disabled={billingBusy}>
+              {billingBusy ? 'Working...' : `Subscribe ${billingConfig.price_display}`}
+            </button>
+            <button type="button" className="billing-btn" onClick={handleManageBilling} disabled={billingBusy || !billingEmail.trim()}>
+              Manage Billing
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ═══════ CREATIVE MODE ═══════ */}
       {mode === 'creative' && !hasResults && (
@@ -378,6 +632,7 @@ function App() {
             {openSections.brief && (
               <div className="brief-body">
                 <p>{creativeResult.outputs?.image_brief?.description}</p>
+                <p className="brief-note">(You can reuse this prompt and tweak it slightly to generate a different image variation.)</p>
                 {creativeResult.outputs?.image_brief?.cultural_elements?.length > 0 && (
                   <div className="brief-tags">{creativeResult.outputs.image_brief.cultural_elements.map((el, i) => <span key={i} className="tag">{el}</span>)}</div>
                 )}

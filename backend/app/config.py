@@ -7,21 +7,30 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
 
 class Settings(BaseSettings):
-    gmi_api_key: str = ""
-    gmi_base_url: str = "https://api.gmi-serving.com/v1"
-    gmi_queue_url: str = "https://console.gmicloud.ai/api/v1/ie/requestqueue/apikey"
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    app_base_url: str = "http://localhost:8000"
+    frontend_base_url: str = "http://localhost:5173"
 
-    # Model assignments (verified against GMI Cloud model list)
-    model_image_analysis: str = "openai/gpt-5.4"
-    model_strategy: str = "deepseek-ai/DeepSeek-V3.2"
-    model_copywriting: str = "deepseek-ai/DeepSeek-V3.2"
-    model_image_gen: str = "gemini-3.1-flash-image-preview"  # queue-based API
-    model_direct_edit: str = "gemini-3.1-flash-image-preview"  # queue-based, supports image input
+    # Model assignments
+    model_image_analysis: str = "gpt-4.1-mini"
+    model_strategy: str = "gpt-4.1"
+    model_copywriting: str = "gpt-4.1"
+    model_image_gen: str = "gpt-image-1"
+    model_direct_edit: str = "gpt-image-1"
 
     # Publer (social media publishing)
     publer_api_key: str = ""
     publer_workspace_id: str = ""
     publer_tiktok_account_id: str = ""
+
+    # Stripe billing
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_id: str = ""
+    stripe_plan_name: str = "ADapt Pro"
+    stripe_price_display: str = "$29/month"
+    stripe_publishable_key: str = ""
 
     class Config:
         env_prefix = ""

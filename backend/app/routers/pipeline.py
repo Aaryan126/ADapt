@@ -12,6 +12,7 @@ from app.models import (
 )
 from app.services.markets import get_market
 from app.services.gmi_client import analyze_image, chat_completion
+from app.services.billing import require_active_subscription
 from app.routers.intake import IMAGE_ANALYSIS_PROMPT
 from app.routers.strategy import build_strategy_prompt
 from app.routers.generate import generate_outputs
@@ -31,6 +32,7 @@ async def run_pipeline(
     audience_segment: Optional[str] = Form(None),
     platform: Optional[str] = Form(None),
     freeform_notes: Optional[str] = Form(None),
+    customer_email: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
 ):
     settings = get_settings()
@@ -43,10 +45,12 @@ async def run_pipeline(
     # --- Step 1: Ad Intake ---
     logger.info("[STEP 1] Ad Intake")
     step_start = time.time()
+    require_active_subscription(customer_email)
     if image:
         image_bytes = await image.read()
+        mime_type = image.content_type or "image/png"
         logger.info(f"[STEP 1] Analyzing uploaded image ({len(image_bytes)} bytes, filename={image.filename})")
-        result = await analyze_image(image_bytes, IMAGE_ANALYSIS_PROMPT)
+        result = await analyze_image(image_bytes, IMAGE_ANALYSIS_PROMPT, mime_type=mime_type)
         logger.info(f"[STEP 1] Image analysis complete in {time.time() - step_start:.1f}s")
         logger.info(f"[STEP 1] Extracted: {result[:200]}...")
         try:

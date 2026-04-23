@@ -20,6 +20,11 @@ router = APIRouter()
 OUTPUT_DIR = Path(__file__).parent.parent.parent.parent / "output"
 
 
+def _build_output_url(filename: str) -> str:
+    settings = get_settings()
+    return f"{settings.app_base_url.rstrip('/')}/output/{filename}"
+
+
 def build_copy_prompt(req: GenerateRequest) -> str:
     market = req.market
     ad = req.ad_info
@@ -256,27 +261,12 @@ Text overlays: {', '.join(image_brief.text_overlays)}{custom_reminder}"""
     if image_result:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         file_id = uuid.uuid4().hex[:8]
-        if image_result.startswith("http"):
-            image_url = image_result
-            # Download the image and save locally
-            import httpx
-            try:
-                logger.info(f"[STEP 5c] Downloading generated image...")
-                async with httpx.AsyncClient(timeout=30) as dl_client:
-                    img_resp = await dl_client.get(image_url)
-                    img_resp.raise_for_status()
-                    image_path = str(OUTPUT_DIR / f"ad_{req.market.code}_{file_id}.png")
-                    with open(image_path, "wb") as f:
-                        f.write(img_resp.content)
-                    logger.info(f"[STEP 5c] Image saved to {image_path} ({len(img_resp.content)} bytes)")
-            except Exception as e:
-                logger.error(f"[STEP 5c] Failed to download image: {e}")
-        else:
-            # Save as text fallback
-            image_path = str(OUTPUT_DIR / f"ad_{req.market.code}_{file_id}_brief.txt")
-            with open(image_path, "w") as f:
-                f.write(image_result)
-            logger.info(f"[STEP 5c] Image result saved as text to {image_path}")
+        filename = f"ad_{req.market.code}_{file_id}.png"
+        image_path = str(OUTPUT_DIR / filename)
+        with open(image_path, "wb") as f:
+            f.write(image_result)
+        image_url = _build_output_url(filename)
+        logger.info(f"[STEP 5c] Image saved to {image_path} ({len(image_result)} bytes)")
 
     # Save full results to JSON
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

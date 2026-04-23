@@ -21,10 +21,11 @@ After generating or editing an ad, publish it directly to TikTok via the Publer 
 
 - **Backend**: Python 3.11+, FastAPI
 - **Frontend**: React + Vite
-- **AI Models**: GMI Cloud inference API
-  - `openai/gpt-5.4` - image analysis (Step 1)
-  - `zai-org/GLM-5.1-FP8` - strategy and copywriting (Steps 4-5)
-  - `gemini-3.1-flash-image-preview` - image generation and direct editing (Step 5)
+- **AI Models**: OpenAI API
+  - `gpt-4.1-mini` - image analysis (Step 1)
+  - `gpt-4.1` - strategy and copywriting (Steps 4-5)
+  - `gpt-image-1` - image generation and direct editing (Step 5)
+- **Billing**: Stripe Checkout + Customer Portal + webhook sync
 - **Publishing**: Publer API (TikTok)
 
 ## Quick Start
@@ -56,8 +57,16 @@ open http://localhost:5173
 ## Environment Variables
 
 ```
-GMI_API_KEY=           # GMI Cloud API key (required)
-GMI_BASE_URL=          # Default: https://api.gmi-serving.com/v1
+OPENAI_API_KEY=        # OpenAI API key (required)
+OPENAI_BASE_URL=       # Default: https://api.openai.com/v1
+APP_BASE_URL=          # Default: http://localhost:8000
+FRONTEND_BASE_URL=     # Default: http://localhost:5173
+
+STRIPE_SECRET_KEY=     # Stripe secret key
+STRIPE_WEBHOOK_SECRET= # Stripe webhook signing secret
+STRIPE_PRICE_ID=       # Stripe recurring price id for the subscription
+STRIPE_PLAN_NAME=      # Display name in the UI, e.g. ADapt Pro
+STRIPE_PRICE_DISPLAY=  # Display string in the UI, e.g. $29/month
 
 PUBLER_API_KEY=        # Publer API key (for TikTok posting)
 PUBLER_WORKSPACE_ID=   # Publer workspace ID
@@ -69,16 +78,32 @@ PUBLER_TIKTOK_ACCOUNT_ID=  # Publer TikTok account ID
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/health` | Health check |
-| GET | `/api/v1/models` | List available GMI models |
+| GET | `/api/v1/models` | List available OpenAI models |
 | POST | `/api/v1/intake/text` | Submit text ad |
 | POST | `/api/v1/intake/image` | Upload image ad |
 | GET | `/api/v1/markets` | List market presets |
 | GET | `/api/v1/markets/{code}` | Get specific market preset |
+| GET | `/api/v1/billing/config` | Get billing configuration |
+| GET | `/api/v1/billing/status?email=...` | Get subscription status for an email |
+| POST | `/api/v1/billing/checkout` | Create Stripe Checkout session |
+| POST | `/api/v1/billing/portal` | Create Stripe Customer Portal session |
+| GET | `/api/v1/billing/confirm?session_id=...` | Confirm completed Stripe Checkout session |
+| POST | `/api/v1/billing/webhook` | Stripe webhook endpoint |
 | POST | `/api/v1/strategy` | Generate localization strategy |
 | POST | `/api/v1/generate` | Generate localized outputs |
 | POST | `/api/v1/pipeline/run` | Run full creative pipeline |
 | POST | `/api/v1/direct-edit/run` | Direct image edit |
 | POST | `/api/v1/publish/tiktok` | Publish to TikTok |
+
+## Stripe Local Testing
+
+Install the Stripe CLI, then forward webhooks to the local backend:
+
+```bash
+stripe listen --forward-to localhost:8000/api/v1/billing/webhook
+```
+
+Copy the reported signing secret into `STRIPE_WEBHOOK_SECRET`.
 
 ## Supported Markets
 
